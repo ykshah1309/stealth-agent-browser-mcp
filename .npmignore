@@ -1,0 +1,10 @@
+src/
+test/
+benchmarks/
+.github/
+scripts/
+tsconfig.json
+vitest.config.ts
+*.tgz
+.user-data/
+coverage/

@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+*.log
+npm-debug.log*
+.env
+.env.local
+.DS_Store
+.vscode/
+.idea/
+*.tgz
+benchmarks/results/
+test-results/
+playwright-report/
+.user-data/
+.claude/

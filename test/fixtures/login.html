@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fixture Login</title>
+  </head>
+  <body>
+    <main>
+      <h1 id="hdr">Sign in</h1>
+      <form id="f" aria-label="login">
+        <label>
+          Email
+          <input type="email" name="email" aria-label="email" />
+        </label>
+        <label>
+          Password
+          <input type="password" name="password" aria-label="password" />
+        </label>
+        <button type="submit" aria-label="submit">Log in</button>
+      </form>
+      <p id="note">Use any credentials.</p>
+      <section aria-label="article">
+        <h2>About this page</h2>
+        <p>
+          This fixture is used by the stealth-agent-browser-mcp test suite to
+          validate AOM snapshots, ref-based clicks, typing, and readability
+          extraction in a deterministic offline environment.
+        </p>
+        <p>
+          It contains enough semantic structure for Playwright's
+          <code>ariaSnapshot</code> to emit meaningful refs for every
+          interactive element.
+        </p>
+      </section>
+    </main>
+    <script>
+      document.getElementById("f").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const note = document.getElementById("note");
+        note.textContent = "Logged in as " + (e.target.email.value || "anon");
+      });
+    </script>
+  </body>
+</html>

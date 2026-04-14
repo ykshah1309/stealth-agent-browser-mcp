@@ -1,0 +1,61 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ykshah1309/stealth-agent-browser-mcp",
+  "title": "Stealth Agent Browser",
+  "description": "Stealth Chromium MCP server with hybrid AOM + Set-of-Mark vision, Patchright-grade anti-detection, and Readability-based content extraction. Token-lean by default.",
+  "version": "0.1.0",
+  "websiteUrl": "https://github.com/yksha/stealth-agent-browser-mcp",
+  "repository": {
+    "url": "https://github.com/ykshah1309/stealth-agent-browser-mcp",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "stealth-agent-browser-mcp",
+      "version": "0.1.0",
+      "transport": { "type": "stdio" },
+      "runtimeHint": "npx",
+      "runtimeArguments": [
+        { "type": "positional", "value": "-y" },
+        { "type": "positional", "value": "stealth-agent-browser-mcp" }
+      ],
+      "environmentVariables": [
+        {
+          "name": "SAB_HEADLESS",
+          "description": "Run Chromium headless. Default: true.",
+          "isRequired": false,
+          "default": "true"
+        },
+        {
+          "name": "SAB_STEALTH_LEVEL",
+          "description": "off | patched | paranoid. Default: patched.",
+          "isRequired": false,
+          "default": "patched"
+        },
+        {
+          "name": "SAB_PROXY_SERVER",
+          "description": "Optional proxy URL, e.g. http://host:port.",
+          "isRequired": false
+        },
+        {
+          "name": "SAB_PROXY_USERNAME",
+          "description": "Optional proxy username.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "SAB_PROXY_PASSWORD",
+          "description": "Optional proxy password.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "SAB_USER_DATA_DIR",
+          "description": "Persistent browser profile directory.",
+          "isRequired": false
+        }
+      ]
+    }
+  ]
+}

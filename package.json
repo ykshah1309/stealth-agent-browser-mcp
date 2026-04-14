@@ -1,0 +1,75 @@
+{
+  "name": "stealth-agent-browser-mcp",
+  "version": "0.1.0",
+  "description": "Stealth browser MCP server for AI agents. Hybrid AOM + Set-of-Mark vision, Patchright-grade anti-detection, token-lean by design.",
+  "type": "module",
+  "bin": {
+    "stealth-agent-browser-mcp": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "server.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/make-executable.mjs",
+    "dev": "tsc -p tsconfig.json --watch",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build:bench": "tsc -p benchmarks/tsconfig.json",
+    "bench:stealth": "npm run build:bench && node dist/benchmarks/benchmarks/stealth-bench.js",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "anthropic",
+    "browser",
+    "automation",
+    "playwright",
+    "stealth",
+    "patchright",
+    "rebrowser",
+    "aria",
+    "accessibility",
+    "set-of-mark",
+    "agent",
+    "ai"
+  ],
+  "author": "ykshah1309",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ykshah1309/stealth-agent-browser-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ykshah1309/stealth-agent-browser-mcp/issues"
+  },
+  "homepage": "https://github.com/ykshah1309/stealth-agent-browser-mcp#readme",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "@mozilla/readability": "^0.5.0",
+    "jsdom": "^25.0.1",
+    "pino": "^9.5.0",
+    "rebrowser-playwright": "^1.49.1",
+    "sharp": "^0.33.5",
+    "turndown": "^7.2.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^22.10.0",
+    "@types/turndown": "^5.0.5",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
