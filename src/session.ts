@@ -44,10 +44,31 @@ export class SessionManager {
 
   // Cycle the active session. Used after config mutations (e.g., proxy update)
   // so the new settings actually take effect at the Chromium layer.
+  //
+  // Must hold `initPromise` for the ENTIRE close+create window, synchronously
+  // installed before any await, so that a concurrent `getOrCreate()` (e.g.
+  // from a parallel `browser_navigate` tool call) awaits the same promise
+  // instead of racing into a second `create()` and leaking a twin Chromium.
   async restart(): Promise<Session> {
     logger.info("restarting active session");
-    await this.closeAll();
-    return this.create();
+    const task = (async () => {
+      // Drain any in-flight cold-start first so we don't tear down a session
+      // that a sibling caller is still waiting on.
+      const pending = this.initPromise;
+      if (pending) {
+        try {
+          await pending;
+        } catch {
+          /* ignore — cold-start failure is the caller's problem, not ours */
+        }
+      }
+      await this.closeAll();
+      return this.create();
+    })();
+    this.initPromise = task.finally(() => {
+      this.initPromise = null;
+    });
+    return task;
   }
 
   list(): Session[] {
@@ -55,20 +76,26 @@ export class SessionManager {
   }
 
   async closeAll(): Promise<void> {
-    const closings = [...this.sessions.values()].map(async (s) => {
-      try {
-        await s.context.close();
-      } catch {
-        /* ignore */
-      }
-      try {
-        await s.browser.close();
-      } catch {
-        /* ignore */
-      }
-    });
-    await Promise.all(closings);
+    // Clear the map FIRST so a concurrent `getOrCreate()` during teardown
+    // falls through to the mutex (initPromise) instead of returning a
+    // half-closed session.
+    const existing = [...this.sessions.values()];
     this.sessions.clear();
-    this.initPromise = null;
+    await Promise.all(
+      existing.map(async (s) => {
+        try {
+          await s.context.close();
+        } catch {
+          /* ignore */
+        }
+        try {
+          await s.browser.close();
+        } catch {
+          /* ignore */
+        }
+      }),
+    );
+    // NB: do NOT clear `initPromise` here — `restart()` owns that mutex and
+    // nulling it mid-restart would re-open the race this method closed.
   }
 }

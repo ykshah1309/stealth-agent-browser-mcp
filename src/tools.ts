@@ -81,21 +81,19 @@ const ProxyInput = {
 
 const RestartInput = {} as z.ZodRawShape;
 
-// Wait for the page to settle after a user-triggered mutation. Modern web apps
-// need a tick or two for modals/animations/XHR-driven DOM updates to land —
-// snapshotting instantly returns pre-click layout and confuses the agent.
-async function settle(page: Page): Promise<void> {
+// Wait for the page to settle after a user-triggered mutation. Modern SPAs
+// with telemetry, WebSockets, or background polling never reach Playwright's
+// `networkidle` — an earlier revision waited out a 1.5s timeout on every
+// click, injecting ~1.65s of dead latency. We now rely on a short DOM-quiet
+// debounce: `domcontentloaded` (instantly satisfied if already past it) plus
+// a brief delay for modal/animation paint.
+export async function settle(page: Page): Promise<void> {
   try {
-    await page.waitForLoadState("domcontentloaded", { timeout: 3000 });
+    await page.waitForLoadState("domcontentloaded", { timeout: 2000 });
   } catch {
     /* best-effort */
   }
-  try {
-    await page.waitForLoadState("networkidle", { timeout: 1500 });
-  } catch {
-    /* best-effort */
-  }
-  await page.waitForTimeout(150);
+  await page.waitForTimeout(250);
 }
 
 function fmtSnapshot(s: SnapshotResult): CallToolResult {
@@ -214,7 +212,7 @@ export function buildTools(sessions: SessionManager, config: Config): ToolDef[] 
         try {
           const loc = await refLocator(s, input.ref);
           if (input.clear) await loc.fill("");
-          await loc.type(input.text, { delay: 12 });
+          await loc.pressSequentially(input.text, { delay: 12 });
           if (input.submit) await loc.press("Enter");
           invalidateReadCache(s);
           await settle(s.page);
@@ -266,7 +264,9 @@ export function buildTools(sessions: SessionManager, config: Config): ToolDef[] 
           } else {
             await s.page.evaluate((dy: number) => window.scrollBy(0, dy), px);
           }
-          await s.page.waitForLoadState("networkidle", { timeout: 4000 }).catch(() => {});
+          // Same rationale as settle(): no networkidle. Short debounce covers
+          // lazy-load/image-decoding without taxing polling SPAs.
+          await s.page.waitForTimeout(200);
 
           const r = await readableMarkdown(s.page, input.deltaOnly ? s.lastReadHash : null);
           s.lastReadHash = r.contentHash;

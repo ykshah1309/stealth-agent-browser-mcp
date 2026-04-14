@@ -33,8 +33,43 @@ function stripHeavyNodes(doc: Document): void {
   }
 }
 
+// Serialize the live DOM with shadow roots expanded inline. `page.content()`
+// returns outer HTML only and silently drops everything inside open shadow
+// roots — which is precisely where modern web components keep their text.
+// The AOM pipeline (ariaSnapshot) pierces shadow DOM natively, so without
+// this the agent sees interactive refs that have no readable context,
+// producing hallucination-grade confusion. Closed shadow roots remain
+// inaccessible by spec.
+async function shadowPiercingHtml(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    function expand(node: Element): Element {
+      const out = node.cloneNode(false) as Element;
+      if (node.tagName === "SLOT") {
+        const slot = node as HTMLSlotElement;
+        const assigned = slot.assignedNodes({ flatten: true });
+        const src: Iterable<Node> =
+          assigned.length > 0 ? assigned : Array.from(node.childNodes);
+        for (const child of src) {
+          if (child.nodeType === 1) out.appendChild(expand(child as Element));
+          else out.appendChild(child.cloneNode(true));
+        }
+        return out;
+      }
+      const root = (node as Element & { shadowRoot?: ShadowRoot | null }).shadowRoot;
+      const children: Iterable<Node> = root ? root.childNodes : node.childNodes;
+      for (const child of children) {
+        if (child.nodeType === 1) out.appendChild(expand(child as Element));
+        else out.appendChild(child.cloneNode(true));
+      }
+      return out;
+    }
+    const expanded = expand(document.documentElement);
+    return "<!doctype html>" + expanded.outerHTML;
+  });
+}
+
 export async function readableMarkdown(page: Page, prevHash: string | null): Promise<ReadResult> {
-  const html = await page.content();
+  const html = await shadowPiercingHtml(page);
   const url = page.url();
   const dom = new JSDOM(html, { url });
   stripHeavyNodes(dom.window.document);

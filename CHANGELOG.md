@@ -2,7 +2,25 @@
 
 All notable changes to this project will be documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - Unreleased
+## [0.1.2] - 2026-04-14
+
+### Fixed
+- **Latency tax (Round 2 audit #1):** `settle()` no longer awaits `networkidle`. Modern SPAs with background polling never reach true network idle, so the old path paid the full 1.5s timeout on every click/type/select. Replaced with `domcontentloaded` + 250ms debounce. `browser_scroll_read` same treatment.
+- **Shadow DOM blindness (Round 2 audit #2):** `reader.ts` now pierces open shadow roots via a page-side recursive clone (with `<slot>` expansion via `assignedNodes`). The AOM snapshot already pierced shadow DOM; the reader did not — producing hallucination when agents tried to read context around web-component refs. Closed shadow roots remain inaccessible by spec.
+- **Restart race (Round 2 audit #3):** `SessionManager.restart()` now holds `initPromise` synchronously for the entire close+create window. Previously, a parallel `browser_navigate` firing during the close phase would see an empty session map and null mutex, spawning a twin Chromium.
+- **Deprecated Playwright API (Round 2 audit #4):** `browser_type` migrated from `locator.type()` to `locator.pressSequentially()`. Eliminates deprecation warnings in host stderr.
+
+### Added
+- Round 2 regression tests: settle-latency budget, shadow-DOM piercing, restart-race concurrency, pressSequentially smoke.
+- Test fixtures: `shadow.html` (custom element with open shadow root + slotted light DOM), `polling.html` (continuous background XHR).
+
+## [0.1.1] - 2026-04-13
+
+### Changed
+- Added `mcpName` field to `package.json` (required by the MCP Registry publisher).
+- Trimmed server.json description to ≤100 chars to pass registry validation.
+
+## [0.1.0] - 2026-04-13
 
 ### Added
 - Initial MCP server with stdio transport

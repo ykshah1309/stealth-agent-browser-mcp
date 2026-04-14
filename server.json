@@ -3,7 +3,7 @@
   "name": "io.github.ykshah1309/stealth-agent-browser-mcp",
   "title": "Stealth Agent Browser",
   "description": "Stealth Chromium MCP server with hybrid AOM + Set-of-Mark vision and Readability extraction.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "websiteUrl": "https://github.com/yksha/stealth-agent-browser-mcp",
   "repository": {
     "url": "https://github.com/ykshah1309/stealth-agent-browser-mcp",
@@ -13,7 +13,7 @@
     {
       "registryType": "npm",
       "identifier": "stealth-agent-browser-mcp",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "transport": { "type": "stdio" },
       "runtimeHint": "npx",
       "runtimeArguments": [

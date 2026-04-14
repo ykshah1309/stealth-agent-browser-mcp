@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Shadow DOM fixture</title>
+  </head>
+  <body>
+    <main>
+      <custom-card>
+        <p>Slotted light-DOM paragraph that a good reader should also pick up.</p>
+      </custom-card>
+    </main>
+    <script>
+      class CustomCard extends HTMLElement {
+        constructor() {
+          super();
+          const s = this.attachShadow({ mode: "open" });
+          s.innerHTML = `
+            <article>
+              <h1>Shadow Headline Alpha</h1>
+              <p>
+                This paragraph lives inside an open shadow root and would be
+                invisible to page.content() based extractors. Shadow DOM needs
+                to be pierced recursively for accessibility and readability
+                parity across the agent surface.
+              </p>
+              <p>
+                A second paragraph of shadow-root prose ensures Readability
+                density thresholds are met with distinct vocabulary, reducing
+                the chance of boilerplate classification.
+              </p>
+              <p>
+                Third paragraph for good measure: long-form content heuristics
+                tend to require a reasonable prose density before classifying a
+                node as the article root.
+              </p>
+              <slot></slot>
+            </article>
+          `;
+        }
+      }
+      customElements.define("custom-card", CustomCard);
+    </script>
+  </body>
+</html>

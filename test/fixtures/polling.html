@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Polling fixture</title>
+  </head>
+  <body>
+    <button id="go">Click me</button>
+    <script>
+      // Continuous background XHR — the page never reaches `networkidle`.
+      // Any settle() implementation that awaits networkidle will pay the full
+      // timeout on every action. This fixture exists to catch that regression.
+      setInterval(() => {
+        fetch(window.location.href + "?t=" + Date.now()).catch(() => {});
+      }, 50);
+    </script>
+  </body>
+</html>

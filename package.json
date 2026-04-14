@@ -1,6 +1,6 @@
 {
   "name": "stealth-agent-browser-mcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "mcpName": "io.github.ykshah1309/stealth-agent-browser-mcp",
   "description": "Stealth browser MCP server for AI agents. Hybrid AOM + Set-of-Mark vision, Patchright-grade anti-detection, token-lean by design.",
   "type": "module",
