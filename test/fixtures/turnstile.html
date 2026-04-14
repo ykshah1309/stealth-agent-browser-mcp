@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Turnstile fixture</title>
+  </head>
+  <body>
+    <h1>Verify to continue</h1>
+    <form id="f">
+      <!-- Mimics the actual Turnstile widget markup the Cloudflare script would render. -->
+      <div class="cf-turnstile" data-sitekey="0x4AAAAAAA_test_sitekey"></div>
+      <input type="hidden" name="cf-turnstile-response" value="" />
+      <button type="submit">Continue</button>
+    </form>
+  </body>
+</html>

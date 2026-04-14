@@ -2,6 +2,7 @@ import type { Browser, BrowserContext, LaunchOptions } from "rebrowser-playwrigh
 import { chromium } from "rebrowser-playwright";
 import type { Config } from "./config.js";
 import { pickFingerprint, type FingerprintProfile } from "./fingerprint.js";
+import type { ResolvedProxy } from "./proxy.js";
 import { logger } from "./logger.js";
 
 // Launch args tuned to avoid the most obvious automation tells while
@@ -37,6 +38,7 @@ export interface LaunchedBrowser {
 export async function launchStealthBrowser(
   config: Config,
   sessionSeed?: string,
+  proxyOverride?: ResolvedProxy,
 ): Promise<LaunchedBrowser> {
   const fingerprint = pickFingerprint(sessionSeed);
 
@@ -46,16 +48,31 @@ export async function launchStealthBrowser(
     ignoreDefaultArgs: ["--enable-automation"],
   };
 
-  if (config.proxyServer) {
+  // Pool-resolved proxy takes precedence over the single-proxy env vars.
+  const effectiveProxy = proxyOverride
+    ? proxyOverride
+    : config.proxyServer
+      ? {
+          server: config.proxyServer,
+          username: config.proxyUsername,
+          password: config.proxyPassword,
+        }
+      : undefined;
+
+  if (effectiveProxy) {
     launchOptions.proxy = {
-      server: config.proxyServer,
-      username: config.proxyUsername,
-      password: config.proxyPassword,
+      server: effectiveProxy.server,
+      username: effectiveProxy.username,
+      password: effectiveProxy.password,
     };
   }
 
   logger.info(
-    { stealthLevel: config.stealthLevel, proxy: Boolean(config.proxyServer) },
+    {
+      stealthLevel: config.stealthLevel,
+      proxy: Boolean(effectiveProxy),
+      proxyHost: effectiveProxy ? new URL(effectiveProxy.server).host : undefined,
+    },
     "launching stealth browser",
   );
 

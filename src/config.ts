@@ -6,6 +6,12 @@ const ConfigSchema = z.object({
   proxyServer: z.string().optional(),
   proxyUsername: z.string().optional(),
   proxyPassword: z.string().optional(),
+  proxyPool: z.string().optional(),
+  proxyRotation: z.enum(["per-session", "per-restart", "static"]).default("per-restart"),
+  proxyStickyUsernameTemplate: z.string().optional(),
+  humanMouse: z.boolean().default(true),
+  captchaProvider: z.enum(["capsolver", "twocaptcha", "none"]).default("none"),
+  captchaApiKey: z.string().optional(),
   userDataDir: z.string().optional(),
   defaultTimeoutMs: z.number().int().positive().default(15_000),
   maxAnnotatedElements: z.number().int().positive().default(75),
@@ -29,6 +35,13 @@ export function loadConfig(): Config {
     proxyServer: process.env.SAB_PROXY_SERVER,
     proxyUsername: process.env.SAB_PROXY_USERNAME,
     proxyPassword: process.env.SAB_PROXY_PASSWORD,
+    proxyPool: process.env.SAB_PROXY_POOL,
+    proxyRotation: (process.env.SAB_PROXY_ROTATION as Config["proxyRotation"]) ?? undefined,
+    proxyStickyUsernameTemplate: process.env.SAB_PROXY_STICKY_TEMPLATE,
+    humanMouse: parseBool(process.env.SAB_HUMAN_MOUSE, true),
+    captchaProvider:
+      (process.env.SAB_CAPTCHA_PROVIDER as Config["captchaProvider"]) ?? undefined,
+    captchaApiKey: process.env.SAB_CAPTCHA_API_KEY,
     userDataDir: process.env.SAB_USER_DATA_DIR,
     defaultTimeoutMs: process.env.SAB_DEFAULT_TIMEOUT_MS
       ? Number(process.env.SAB_DEFAULT_TIMEOUT_MS)

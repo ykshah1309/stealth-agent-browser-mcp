@@ -3,6 +3,8 @@ import type { Browser, BrowserContext, Page } from "rebrowser-playwright";
 import type { Config } from "./config.js";
 import { launchStealthBrowser } from "./browser.js";
 import type { FingerprintProfile } from "./fingerprint.js";
+import { HumanMouse } from "./human-mouse.js";
+import { ProxyPool, parseProxyPool } from "./proxy.js";
 import { logger } from "./logger.js";
 
 export interface Session {
@@ -12,6 +14,8 @@ export interface Session {
   page: Page;
   fingerprint: FingerprintProfile;
   lastReadHash: string | null;
+  proxyHost?: string;
+  humanMouse?: HumanMouse;
 }
 
 export class SessionManager {
@@ -19,26 +23,67 @@ export class SessionManager {
   // Mutex for getOrCreate: parallel callers at cold-start race into a single
   // shared creation promise, so we never spawn twin Chromiums.
   private initPromise: Promise<Session> | null = null;
+  private pool: ProxyPool;
 
-  constructor(private readonly config: Config) {}
+  constructor(private readonly config: Config) {
+    const entries = parseProxyPool(config.proxyPool);
+    this.pool = new ProxyPool(entries, config.proxyRotation, config.proxyStickyUsernameTemplate);
+    if (entries.length > 0) {
+      logger.info(
+        { poolSize: entries.length, rotation: config.proxyRotation },
+        "proxy pool initialized",
+      );
+    }
+  }
+
+  // Swap in a new pool at runtime (browser_set_proxy with a pool payload).
+  setProxyPool(raw: string | undefined, rotation?: Config["proxyRotation"]): void {
+    const entries = parseProxyPool(raw);
+    this.pool = new ProxyPool(
+      entries,
+      rotation ?? this.config.proxyRotation,
+      this.config.proxyStickyUsernameTemplate,
+    );
+    logger.info({ poolSize: entries.length }, "proxy pool replaced");
+  }
+
+  poolSize(): number {
+    return this.pool.size();
+  }
 
   async getOrCreate(): Promise<Session> {
     const existing = this.sessions.values().next().value;
     if (existing) return existing;
     if (this.initPromise) return this.initPromise;
-    this.initPromise = this.create().finally(() => {
-      this.initPromise = null;
+    
+    let promise!: Promise<Session>;
+    promise = this.create().finally(() => {
+      // Only release the lock if it hasn't been overwritten by a concurrent restart()
+      if (this.initPromise === promise) {
+        this.initPromise = null;
+      }
     });
-    return this.initPromise;
+    this.initPromise = promise;
+    return promise;
   }
 
   async create(): Promise<Session> {
     const id = randomUUID();
-    const { browser, context, fingerprint } = await launchStealthBrowser(this.config, id);
+    const proxy = this.pool.next(id);
+    const { browser, context, fingerprint } = await launchStealthBrowser(this.config, id, proxy);
     const page = await context.newPage();
-    const session: Session = { id, browser, context, page, fingerprint, lastReadHash: null };
+    const session: Session = {
+      id,
+      browser,
+      context,
+      page,
+      fingerprint,
+      lastReadHash: null,
+    };
+    if (proxy) session.proxyHost = new URL(proxy.server).host;
+    if (this.config.humanMouse) session.humanMouse = new HumanMouse(page);
     this.sessions.set(id, session);
-    logger.info({ sessionId: id }, "session created");
+    logger.info({ sessionId: id, proxyHost: session.proxyHost }, "session created");
     return session;
   }
 
@@ -65,10 +110,15 @@ export class SessionManager {
       await this.closeAll();
       return this.create();
     })();
-    this.initPromise = task.finally(() => {
-      this.initPromise = null;
+    
+    let promise!: Promise<Session>;
+    promise = task.finally(() => {
+      if (this.initPromise === promise) {
+        this.initPromise = null;
+      }
     });
-    return task;
+    this.initPromise = promise;
+    return promise;
   }
 
   list(): Session[] {

@@ -5,6 +5,7 @@ import type { Config } from "./config.js";
 import type { Session, SessionManager } from "./session.js";
 import { takeSnapshot, type SnapshotMode, type SnapshotResult } from "./snapshot.js";
 import { readableMarkdown } from "./reader.js";
+import { solveCaptcha } from "./captcha.js";
 import { logger } from "./logger.js";
 
 export const SnapshotModeSchema = z.enum(["aom", "vision", "hybrid"]).default("aom");
@@ -80,6 +81,32 @@ const ProxyInput = {
 };
 
 const RestartInput = {} as z.ZodRawShape;
+
+const CaptchaInput = {
+  type: z
+    .enum(["turnstile", "hcaptcha", "recaptcha-v2", "recaptcha-v3"])
+    .optional()
+    .describe("Override auto-detection. Otherwise the active page is scanned for a known widget."),
+  sitekey: z.string().optional().describe("Provide explicitly when auto-detection fails."),
+  pageUrl: z
+    .string()
+    .url()
+    .optional()
+    .describe("Page URL the captcha is bound to. Defaults to the current page."),
+};
+
+const ProxyPoolInput = {
+  pool: z
+    .string()
+    .optional()
+    .describe(
+      "Residential proxy pool: comma-separated URLs (http://u:p@host:port) or a JSON array. Omit to clear.",
+    ),
+  rotation: z
+    .enum(["per-session", "per-restart", "static"])
+    .optional()
+    .describe("Rotation strategy. Default: per-restart."),
+};
 
 // Wait for the page to settle after a user-triggered mutation. Modern SPAs
 // with telemetry, WebSockets, or background polling never reach Playwright's
@@ -181,18 +208,25 @@ export function buildTools(sessions: SessionManager, config: Config): ToolDef[] 
     },
     {
       name: "browser_click",
-      description: "Click an element addressed by its ref (from a prior snapshot).",
+      description:
+        "Click an element addressed by its ref. When SAB_HUMAN_MOUSE=true (default), the cursor travels via a Bezier path with pre-click hesitation — this defeats trajectory analyzers like Datadome that flag teleporting mice.",
       inputSchema: ClickInput,
       handler: async (args) => {
         const input = z.object(ClickInput).parse(args);
         const s = await sessions.getOrCreate();
         try {
           const loc = await refLocator(s, input.ref);
-          await loc.click({
-            button: input.button,
-            clickCount: input.clickCount,
-            timeout: config.defaultTimeoutMs,
-          });
+          if (s.humanMouse && input.clickCount === 1) {
+            // Human-style path. Double/triple clicks use Playwright's direct
+            // click to preserve exact inter-click timing expected by the UI.
+            await s.humanMouse.click(loc, { button: input.button });
+          } else {
+            await loc.click({
+              button: input.button,
+              clickCount: input.clickCount,
+              timeout: config.defaultTimeoutMs,
+            });
+          }
           invalidateReadCache(s);
           await settle(s.page);
           const snap = await takeSnapshot(s.page, "aom", { maxAnnotated });
@@ -402,6 +436,40 @@ export function buildTools(sessions: SessionManager, config: Config): ToolDef[] 
         try {
           await sessions.restart();
           return textResult("session restarted with current config");
+        } catch (e) {
+          return errorResult(e);
+        }
+      },
+    },
+    {
+      name: "browser_set_proxy_pool",
+      description:
+        "Replace the residential proxy pool at runtime. Takes effect on the next 'browser_restart'. Supports sticky sessions via SAB_PROXY_STICKY_TEMPLATE.",
+      inputSchema: ProxyPoolInput,
+      handler: async (args) => {
+        const input = z.object(ProxyPoolInput).parse(args);
+        sessions.setProxyPool(input.pool, input.rotation);
+        return textResult(
+          `proxy pool size: ${sessions.poolSize()}. Call browser_restart to cycle.`,
+        );
+      },
+    },
+    {
+      name: "browser_solve_captcha",
+      description:
+        "Fallback captcha solver. Detects Turnstile/hCaptcha/reCAPTCHA on the current page (or takes an explicit sitekey), submits to the configured provider (CapSolver or 2Captcha per SAB_CAPTCHA_PROVIDER + SAB_CAPTCHA_API_KEY), polls for a token, and injects it into the widget's response field.",
+      inputSchema: CaptchaInput,
+      handler: async (args) => {
+        const input = z.object(CaptchaInput).parse(args);
+        const s = await sessions.getOrCreate();
+        try {
+          const override: Parameters<typeof solveCaptcha>[2] = {};
+          if (input.type) override.type = input.type;
+          if (input.sitekey) override.sitekey = input.sitekey;
+          if (input.pageUrl) override.pageUrl = input.pageUrl;
+          const r = await solveCaptcha(s.page, config, override);
+          if ("error" in r) return errorResult(r.error);
+          return textResult(`solved ${r.type}; token=${r.tokenPreview}`);
         } catch (e) {
           return errorResult(e);
         }

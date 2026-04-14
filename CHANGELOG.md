@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-04-14
+
+### Added
+- **Residential proxy pool** (`SAB_PROXY_POOL`) with three rotation strategies (`per-session`, `per-restart`, `static`) and sticky-session username templates (`SAB_PROXY_STICKY_TEMPLATE` with `${sessionId}` interpolation) for Bright Data / DataImpulse / Oxylabs-style backends. New `browser_set_proxy_pool` tool cycles the pool at runtime.
+- **Human-like mouse paths** (`SAB_HUMAN_MOUSE`, default on). `browser_click` now drives the cursor through a Bezier curve (ghost-cursor math module, Playwright mouse driver) with pre-click hesitation. Defeats trajectory analysis employed by Datadome and similar. Falls back to `locator.click()` for double/triple clicks.
+- **Captcha solver** (`SAB_CAPTCHA_PROVIDER`, `SAB_CAPTCHA_API_KEY`). New `browser_solve_captcha` tool. Auto-detects Turnstile / hCaptcha / reCAPTCHA v2+v3 on the active page, submits sitekey+URL to CapSolver or 2Captcha, polls for the token, and injects it into the widget's response field. Intended as a fallback when fingerprint + proxy rotation fail.
+
+### Documentation
+- README now includes a **TLS / JA3 architecture note** explaining why no Node-layer TLS spoofing is needed: all traffic exits through Chromium's BoringSSL, which emits Chrome's real ClientHello. Node-layer spoofing (`curl-impersonate`, `node-tls-client`) applies only to pure-Node HTTP scrapers that bypass the browser.
+
 ## [0.1.2] - 2026-04-14
 
 ### Fixed
